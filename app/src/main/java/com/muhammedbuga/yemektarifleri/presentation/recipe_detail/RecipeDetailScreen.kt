@@ -1,46 +1,54 @@
 package com.muhammedbuga.yemektarifleri.presentation.recipe_detail
 
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import com.muhammedbuga.yemektarifleri.R
 import com.muhammedbuga.yemektarifleri.domain.model.Recipe
 import com.muhammedbuga.yemektarifleri.util.NetworkResult
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
+class RecipeDetailActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        setContent {
+            RecipeDetailScreen(
+                recipeId = intent.getIntExtra("recipeId", 0),
+                onFavoriteClick = { recipe, isFavorite -> /* Handle favorite click */ },
+                snackbarHostState = remember { SnackbarHostState() }
+            )
+        }
+    }
+}
 
 @Composable
 fun RecipeDetailScreen(
     recipeId: Int,
-    snackbarHostState: SnackbarHostState,
     onFavoriteClick: (Recipe, Boolean) -> Unit,
+    snackbarHostState: SnackbarHostState,
     viewModel: RecipeDetailViewModel = hiltViewModel()
 ) {
     val recipeState by viewModel.recipeStateFlow.collectAsState()
-    var isFavorite by remember { mutableStateOf(false) } // Hoisted state
+    var isFavorite by remember { mutableStateOf(false) }
     var showSnackbar by remember { mutableStateOf(false) }
 
     LaunchedEffect(recipeId) {
@@ -78,14 +86,14 @@ fun RecipeDetailScreen(
                 RecipeDetail(
                     recipe = recipe,
                     isFavorite = isFavorite,
+                    snackbarHostState = snackbarHostState,
                     onFavoriteButtonClick = {
-                        isFavorite = !isFavorite // Update local state immediately
-                        showSnackbar = true       // Trigger Snackbar
+                        isFavorite = !isFavorite
                         onFavoriteClick(recipe, isFavorite)
+                        showSnackbar = true
                     }
                 )
 
-                // LaunchedEffect for Snackbar (only for timing)
                 LaunchedEffect(showSnackbar) {
                     if (showSnackbar) {
                         snackbarHostState.showSnackbar(
@@ -102,44 +110,53 @@ fun RecipeDetailScreen(
 @Composable
 fun RecipeDetail(
     recipe: Recipe,
-    onFavoriteButtonClick: () -> Unit,
     isFavorite: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onFavoriteButtonClick: () -> Unit,
 ) {
-    Column(
+    val scrollState = rememberScrollState()
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Image(
-            painter = rememberAsyncImagePainter(recipe.image),
-            contentDescription = recipe.title,
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = recipe.title, style = MaterialTheme.typography.bodyMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
+                .padding(bottom = 16.dp)
         ) {
-            val summary = if ((recipe.summary?.split(' ')?.size ?: 0) > 50) {
-                recipe.summary?.split(' ')?.take(50)?.joinToString(" ") + "..."
-            } else {
-                recipe.summary ?: "No summary available"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = recipe.title,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp)
+                )
+                IconButton(
+                    onClick = onFavoriteButtonClick
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        tint = if (isFavorite) Color.Red else Color.Gray
+                    )
+                }
             }
-            Text(text = summary)
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            Button(onClick = onFavoriteButtonClick) {
-                Text(if (isFavorite) "Favorilerden Çıkar" else "Favorilere Ekle")
-            }
+            Image(
+                painter = rememberAsyncImagePainter(recipe.image),
+                contentDescription = recipe.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = recipe.summary?.replace(Regex("<[^>]*>"), "") ?: "No summary available")
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = recipe.instructions?.replace(Regex("<[^>]*>"), "") ?: "No instructions available")
         }
     }
 }
