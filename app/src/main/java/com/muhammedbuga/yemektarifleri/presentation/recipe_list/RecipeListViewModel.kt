@@ -29,14 +29,16 @@ class RecipeListViewModel @Inject constructor(
 
     init {
         fetchRecipes()
-        fetchFavoriteRecipes()
+        searchRecipes("")
     }
 
     private fun fetchRecipes() {
         viewModelScope.launch {
             _recipesStateFlow.value = repository.getRecipes()
+            fetchFavoriteRecipes()
         }
     }
+
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
@@ -48,11 +50,11 @@ class RecipeListViewModel @Inject constructor(
             _recipesStateFlow.value = getRecipeListUseCase(query, 100)
         }
     }
-    private fun fetchFavoriteRecipes() {
-        viewModelScope.launch {
-            repository.getFavoriteRecipesFlow().collect { favorites ->
-                _favoritesStateFlow.value = favorites
-            }
+
+    private suspend fun fetchFavoriteRecipes() {
+        repository.getFavoriteRecipesFlow().collect { favorites ->
+            _favoritesStateFlow.value = favorites
         }
     }
+
 }
