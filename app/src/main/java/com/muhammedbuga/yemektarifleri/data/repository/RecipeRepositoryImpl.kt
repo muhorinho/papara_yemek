@@ -6,6 +6,7 @@ import com.muhammedbuga.yemektarifleri.data.remote.RecipeApi
 import com.muhammedbuga.yemektarifleri.domain.model.Recipe
 import com.muhammedbuga.yemektarifleri.domain.repository.RecipeRepository
 import com.muhammedbuga.yemektarifleri.util.NetworkResult
+import com.muhammedbuga.yemektarifleri.util.NetworkUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -14,7 +15,9 @@ import javax.inject.Inject
 
 class RecipeRepositoryImpl @Inject constructor(
     private val recipeDao: RecipeDao,
-    private val recipeApi: RecipeApi
+    private val recipeApi: RecipeApi,
+    private val networkUtil: NetworkUtil
+
 ) : RecipeRepository {
 
     override suspend fun getRecipes(): NetworkResult<List<Recipe>> = withContext(Dispatchers.IO) {
@@ -93,6 +96,12 @@ class RecipeRepositoryImpl @Inject constructor(
 
     override suspend fun searchRecipes(query: String, number: Int): NetworkResult<List<Recipe>> = withContext(Dispatchers.IO) {
         try {
+            if (!networkUtil.isNetworkAvailable()) {
+                // İnternet bağlantısı yok, önbellekteki verileri getir
+                val cachedRecipes = recipeDao.getAllRecipesFlow().firstOrNull() ?: emptyList()
+                return@withContext NetworkResult.Success(cachedRecipes)
+            }
+
             Log.d("RecipeRepository", "Searching recipes with query: $query")
             val response = recipeApi.searchRecipes(query = query, number = number)
 
@@ -103,8 +112,8 @@ class RecipeRepositoryImpl @Inject constructor(
                         id = dto.id,
                         title = dto.title,
                         image = dto.image,
-                        summary = dto.summary, // Yeni alan
-                        instructions = dto.instructions // Yeni alan
+                        summary = dto.summary,
+                        instructions = dto.instructions
                     )
                 }
                 return@withContext NetworkResult.Success(recipes)
