@@ -18,7 +18,7 @@ fun FavoriteRecipesScreen(
 
     LazyColumn {
         items(favoritesState) { recipe ->
-            RecipeItem(recipe = recipe, onRecipeClick = {onRecipeClick(recipe.id)})
+            RecipeItem(recipe = recipe, onRecipeClick = { onRecipeClick(recipe.id) })
         }
     }
 }
